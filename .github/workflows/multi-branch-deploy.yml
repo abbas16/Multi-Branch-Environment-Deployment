@@ -1,4 +1,4 @@
-name: 🌍 Multi-Branch Environment Deployment
+name: Multi-Branch Environment Deployment
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   Lint:
-    name: 🔎 Lint Code
+    name: Lint Code
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -30,7 +30,7 @@ jobs:
         run: npm run lint
 
   Test:
-    name: 🧪 Run Tests
+    name: Run Tests
     needs: Lint
     runs-on: ubuntu-latest
     defaults:
@@ -66,7 +66,7 @@ jobs:
           path: test-artifact.tar.gz
 
   Build:
-    name: 🏗️ Build Project
+    name: Build Project
     needs: Test
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
@@ -98,7 +98,7 @@ jobs:
           path: dist/
 
   Deploy-to-QA:
-    name: 🚀 Deploy to QA
+    name: Deploy to QA
     needs: Build
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
@@ -124,14 +124,14 @@ jobs:
         with:
           channel-id: ${{ vars.SLACK_CHANNEL_QA }}
           slack-message: |
-            ✅ QA deployment completed for commit `${{ github.sha }}`  
+            QA deployment completed for commit `${{ github.sha }}`  
             Actor: ${{ github.actor }}  
-            🔗 <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>
+            <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
   Deploy-to-Production:
-    name: 🚀 Deploy to Production
+    name: Deploy to Production
     needs: Build
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -157,8 +157,8 @@ jobs:
         with:
           channel-id: ${{ vars.SLACK_CHANNEL_PRODUCTION }}
           slack-message: |
-            ✅ Production deployment successful for commit `${{ github.sha }}`  
+            Production deployment successful for commit `${{ github.sha }}`  
             Actor: ${{ github.actor }}  
-            🔗 <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>
+            <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
