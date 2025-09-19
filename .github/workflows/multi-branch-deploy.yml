@@ -1,0 +1,164 @@
+name: 🌍 Multi-Branch Environment Deployment
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+
+jobs:
+  Lint:
+    name: 🔎 Lint Code
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run lint
+        run: npm run lint
+
+  Test:
+    name: 🧪 Run Tests
+    needs: Lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: |
+          npm test
+      - name: Package test artifact (example)
+        run: |
+          mkdir -p artifacts
+          echo "Test run for $GITHUB_SHA" > artifacts/test-report.txt
+          tar -czf test-artifact.tar.gz artifacts
+
+      - name: Upload test artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: test-artifact.tar.gz
+
+  Build:
+    name: 🏗️ Build Project
+    needs: Test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
+    concurrency:
+      group: build-${{ github.ref }}
+      cancel-in-progress: true
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-dist-${{ github.ref_name }}
+          path: dist/
+
+  Deploy-to-QA:
+    name: 🚀 Deploy to QA
+    needs: Build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    environment: qa
+    concurrency:
+      group: deploy-qa-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-dist-dev
+          path: ./build
+
+      - name: Extract and show artifact
+        run: |
+          echo "=== QA Deploy ==="
+          ls -la build || true
+          if [ -f build/output.txt ]; then cat build/output.txt; fi
+
+      - name: Notify QA channel in Slack
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          channel-id: ${{ vars.SLACK_CHANNEL_QA }}
+          slack-message: |
+            ✅ QA deployment completed for commit `${{ github.sha }}`  
+            Actor: ${{ github.actor }}  
+            🔗 <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+
+  Deploy-to-Production:
+    name: 🚀 Deploy to Production
+    needs: Build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: production
+    concurrency:
+      group: deploy-prod-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-dist-main
+          path: ./build
+
+      - name: Extract and show artifact
+        run: |
+          echo "=== Production Deploy ==="
+          ls -la build || true
+          if [ -f build/output.txt ]; then cat build/output.txt; fi
+
+      - name: Notify Production channel in Slack
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          channel-id: ${{ vars.SLACK_CHANNEL_PRODUCTION }}
+          slack-message: |
+            ✅ Production deployment successful for commit `${{ github.sha }}`  
+            Actor: ${{ github.actor }}  
+            🔗 <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}

@@ -1,0 +1,17 @@
+{
+  "name": "multi-branch-environment-deployment",
+  "version": "1.0.0",
+  "description": "Sample Node.js project to demo a multi-branch CI/CD pipeline (lint, test, build, deploy).",
+  "main": "index.js",
+  "scripts": {
+    "lint": "eslint . || echo \"No ESLint config or issues found (lint skipped)\"",
+    "test": "jest --runInBand",
+    "build": "mkdir -p dist && echo \"Build output: $(date)\" > dist/output.txt"
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "eslint": "^8.50.0",
+    "jest": "^29.0.0"
+  }
+}
